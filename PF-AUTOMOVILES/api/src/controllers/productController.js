@@ -112,10 +112,38 @@ const ProductController = {
         } catch (error) {
             res.status(500).json({ mensaje: 'Error al obtener los productos', error });
         }
+    },
+
+
+    // encontrar el detalle por id
+
+    async getById(req, res) {
+        try {
+            const { id } = req.params;
+
+            // Buscar el producto por su ID en la base de datos
+            const product = await Product.findByPk(id, {
+                include: [
+                    {
+                        model: Category,
+                        attributes: ['name'] // Obtener solo el nombre de la categoría
+                    }
+                ]
+            });
+
+            if (!product) {
+                return res.status(404).json({ mensaje: 'Producto no encontrado' });
+            }
+
+            res.status(200).json(product);
+        } catch (error) {
+            res.status(500).json({ mensaje: 'Error al obtener el producto por ID', error });
+        }
     }
+};
 
      
-}
+
 
 
 module.exports = ProductController;
