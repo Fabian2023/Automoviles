@@ -13,6 +13,7 @@ const productRoutes = require('./productRoutes');
 router.use('/', productRoutes);
 router.use('/create', productRoutes);
 router.use('/update', productRoutes);
+router.use('/name', productRoutes)
 
 
 module.exports = router;
