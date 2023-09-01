@@ -1,5 +1,10 @@
-const { Product, Category } = require('../db.js');
+const { Product, Category } = require('../db.js'); // Importamos los modelos de la base de datos
+const { Op } = require("sequelize");
 
+// Función para quitar los acentos o tildes de una cadena
+function quitarAcentos(str) {
+    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
 
 const ProductController = {
 
@@ -96,23 +101,59 @@ const ProductController = {
         }
     },
 
-     // Obtener todos los productos con sus categorías
-     async getAll(req, res) {
-        try {
-            const products = await Product.findAll({
-                include: [
-                    {
-                        model: Category,
-                        attributes: ['name'] // Obtener solo el nombre de la categoría
-                    }
-                ]
-            });
 
-            res.status(200).json(products);
-        } catch (error) {
-            res.status(500).json({ mensaje: 'Error al obtener los productos', error });
-        }
-    },
+   // Obtener todos los productos con sus categorías y filtros aplicados
+
+   async getAll(req, res) {
+    try {
+        const { name, brand, maker, model, priceOrder, category, limit = 10, page = 1 } = req.query;
+        let whereConditions = {};
+        let orderConditions = [];
+
+        if (name) whereConditions.name = { [Op.iLike]: `%${name}%` };
+        if (brand) whereConditions.brand = { [Op.iLike]: `%${brand}%` };
+        if (maker) whereConditions.maker = { [Op.iLike]: `%${maker}%` };
+        if (model) whereConditions.model = model;
+        if (priceOrder) orderConditions.push(['price', priceOrder.toUpperCase()]);
+
+        // Cálculo del offset
+        const offset = (page - 1) * limit;
+
+        const products = await Product.findAll({
+            where: whereConditions,
+            order: orderConditions.length > 0 ? [orderConditions] : undefined,
+            limit: parseInt(limit),
+            offset: offset,
+            include: [
+                {
+                    model: Category,
+                    attributes: ['name'],
+                    where: category ? {
+                        name: {
+                            [Op.iLike]: `%${quitarAcentos(category).toLowerCase()}%`
+                        }
+                    } : undefined
+                }
+            ]
+        });
+
+        // Obtener el número total de productos que cumplen con la condición
+        const totalProducts = await Product.count({
+            where: whereConditions,
+        });
+
+        // Enviar la respuesta
+        res.status(200).json({
+            data: products || [],
+            totalPages: Math.ceil(totalProducts / limit)
+        });
+
+    } catch (error) {
+        res.status(500).json({ mensaje: 'Error al obtener los productos', error });
+    }
+},
+
+
 
 
     // encontrar el detalle por id
